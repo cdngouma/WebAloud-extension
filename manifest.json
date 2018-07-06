@@ -1,0 +1,54 @@
+{
+	"manifest_version":2,
+	"name":"WebAloud",
+	"description":"Read aloud web content",
+	"version":"1.0",
+	"offline_enabled":true,
+	"author":"Chrys Ngouma",
+
+	"permissions":[
+		"contextMenus",
+		"tabs",
+		"activeTab",
+		"http://*/*", "https://*/*", "background"
+	],
+
+	"background":{
+		"scripts":["background.js"],
+		"persistent":false
+	},
+
+	"content_scripts":[
+		{
+			"matches":["<all_urls>"],
+			"js": ["jquery-3.3.1.min.js", "content.js"],
+			"run_at":"document_idle",
+			"all_frames":false
+		}
+	],
+
+	"content_security_policy": "script-src 'self' https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js; object-src 'self'",
+
+	"browser_action":{
+
+		"default_title":"WebAloud",
+		"default_icon":{
+			"16":"res/icon16.png",
+			"38":"res/icon38.png",
+			"48":"res/icon48.png",
+			"128":"res/icon128.png"
+		},
+		"default_popup":"popup.html"
+	},
+
+	"icons":{
+		"16":"res/icon16.png",
+		"38":"res/icon38.png",
+		"48":"res/icon48.png",
+		"128":"res/icon128.png"
+	},
+
+	"web_accessible_resources":[
+		"res/*.png"
+	]
+}
