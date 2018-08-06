@@ -28,21 +28,37 @@
             <div id="settings_div" style="display:none;">
                 <div class="_separator"></div>
 
-                <div>
-                    <label>Voice/Language:</label><br/>
-                    <select id="voiceSelect" class="custom-select"></select>
-                    <!-- auto determine language -->
-                    <div style="margin-top:5px;">
+                <label>Voice/Language:</label><br/>
+                <select id="voiceSelect" class="custom-select"></select>
+                <!-- auto determine language -->
+                <div style="margin-top:5px;">
+                    <label class="custom-control custom-checkbox">
+                    <input id="auto_box" type="checkbox" class="custom-control-input">
+                    <span class="custom-control-description">Auto Detect</span>
+                    <span class="custom-control-indicator"></span>
+                    </label>
+                </div>
+                <!-- pace -->
+                <label>Pace:</label>
+                <div style="margin-bottom: 20px;">
+                    <div style="margin-top:5px; float: left;">
                         <label class="custom-control custom-checkbox">
-                        <input id="auto_box" type="checkbox" class="custom-control-input">
-                        <span class="custom-control-description">Auto Detect</span>
+                        <input id="p-native_box" type="checkbox" class="custom-control-input">
+                        <span class="custom-control-description">Native</span>
+                        <span class="custom-control-indicator"></span>
+                        </label>
+                    </div>
+                    <div style="margin-top:5px; float: right;">
+                        <label class="custom-control custom-checkbox">
+                        <input id="p-learner_box" type="checkbox" class="custom-control-input">
+                        <span class="custom-control-description">Learner</span>
                         <span class="custom-control-indicator"></span>
                         </label>
                     </div>
                 </div>
-
-            </div>
-
+                <!-- pace selection -->
+             </div>
+             <!-- settings -->
             <div class="_separator"></div>
             <!-- link to Github -->
             <div style="cursor:pointer;">

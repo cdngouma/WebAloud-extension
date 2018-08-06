@@ -3,7 +3,7 @@ var autoLang = true;
 var state = true;
 var has_contextMenu = true;
 
-var voiceIndex = 0;
+var voiceInfo = {index:-1, pace:true};
 
 browser.runtime.onInstalled.addListener(function(){
 	createContextMenu();
@@ -11,7 +11,7 @@ browser.runtime.onInstalled.addListener(function(){
 
 browser.contextMenus.onClicked.addListener(function(info, tabs){
 	if(tabs){
-		browser.tabs.sendMessage(tabs.id, {query:'read-selected', data:{voiceIndex:autoLang ? -1 : voiceIndex}}, function(response){
+		browser.tabs.sendMessage(tabs.id, {query:'read-selected', voiceInfo}, function(response){
 			if(response.err){
 				alert("no text selected");
 			}
@@ -29,8 +29,8 @@ function createContextMenu(){
 	has_contextMenu = true;
 }
 
-function getUpdatedPopup(){
-	return {state:this.state, autoLang:this.autoLang};
+function updatedPopup(){
+	return {state:this.state, autoLang:this.autoLang, pace:this.voiceInfo.pace};
 }
 
 function updateState(state){
@@ -48,8 +48,14 @@ function updateState(state){
 
 function updateAutoLang(b){
 	this.autoLang = b;
+	if(this.autoLang)
+		voiceInfo.index = -1;
 }
 
 function setVoiceIndex(obj){
-	this.voiceIndex = obj.index;
+	this.voiceInfo.index = obj.index;
+}
+
+function togglePace(){
+	this.voiceInfo.pace = !this.voiceInfo.pace;
 }

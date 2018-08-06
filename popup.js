@@ -1,8 +1,8 @@
 var browser = browser || chrome;
 var background = browser.extension.getBackgroundPage();
 
-function initializePopup(){
-	var status = background.getUpdatedPopup();
+function initPopup(){
+	var status = background.updatedPopup();
 
 	if(status.state){
 		$('#_switch').prop('checked', true);
@@ -17,9 +17,11 @@ function initializePopup(){
 
 	$('#auto_box').prop('checked', status.autoLang);
 	$('#voiceSelect').prop('disabled', status.autoLang);
+	$('#p-native_box').prop('checked', status.pace);
+	$('#p-learner_box').prop('checked', !status.pace);
 }
 
-function listenForAction(){	
+function listenForEvents(){	
 	$('#_switch').change(function(){
 		if($(this).is(':checked'))
 			$('#settings_div').slideDown();
@@ -31,6 +33,15 @@ function listenForAction(){
 	$('#auto_box').change(function(){
 		background.updateAutoLang($(this).is(':checked'));
 		$('#voiceSelect').prop('disabled', $(this).is(':checked'));
+	});
+
+	$('#p-native_box').change(function(){
+		background.togglePace();
+		$('#p-learner_box').prop('checked', !$(this).is(':checked'));
+	});
+	$('#p-learner_box').change(function(){
+		background.togglePace();
+		$('#p-native_box').prop('checked', !$(this).is(':checked'));
 	});
 
 	$('#voiceSelect').change(function(){
@@ -61,5 +72,5 @@ function populateVoiceList() {
 if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
   speechSynthesis.onvoiceschanged = populateVoiceList;
 }
-initializePopup();
-listenForAction();
+initPopup();
+listenForEvents();

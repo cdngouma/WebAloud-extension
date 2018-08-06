@@ -6,4 +6,5 @@ Features includes:
 * Auto detection of the language used in the text.
 * Choice of voice and language to use.
 * Choice of pace: native (regular) or learner (slower).
-* Support multiple languages (depending on browser).
+* Supports multiple languages (depending on browser).
+* Supports keybord shortcut (Ctrl + Shift) to stop speaking
