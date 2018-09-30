@@ -1,0 +1,99 @@
+/* main widget css */
+#wba_widget{
+    z-index: 90;
+    position: fixed;
+    top: 35%;
+    right: 0;
+
+    font-family: 'Lato', sans-serif;
+    font-size: 13px;
+    background-color: #f7f7f7;
+
+    max-width: 300px;
+    max-height: 370px;
+    margin: 5px auto;
+    vertical-align: middle;
+
+    border: 1px solid #d9d9d9;
+    border-top-left-radius: 15%;
+    border-bottom-left-radius: 15%;
+}
+
+._wba-logo{
+    content: '';
+    display: inline-block;
+    min-width: 25px;
+    min-height: 25px;
+/*    background-image: url(res/icon38.png); */
+    background-size: 25px 25px;
+    background-repeat: no-repeat;
+}
+
+#controls_div{
+	width: 45px;
+}
+
+.wba-select{
+	width: 170px;
+	height: 30px;
+	margin: 0 10px;
+}
+
+._spacing{
+	margin: 7px 10px;
+}
+
+._CtrlBtn{
+	color: #000;
+	border-radius: 100%;
+	text-align: center;
+}
+
+.wba-btn{
+	width: 25px;
+	height: 25px;
+	font-size: 12px;
+	cursor: pointer;
+	border-style: none;
+}
+
+.wba-btn:hover{
+	background-color: #cccccc;
+}
+
+._divider{
+	width: 90%;
+	border-bottom: 1px solid #d9d9d9;
+	margin: 0 auto;
+}
+
+/* settings popup css */
+#lang-selector{
+	display: none;
+    position: fixed;
+    z-index: 89;
+    top:35%;
+    left:35%;
+    background-color: #f7f7f7;
+    font-family: 'Lato', sans-serif;
+    font-size: 13px;
+    width: 297px;
+   	padding: 10px;
+ 	border: 1px solid #d9d9d9;
+    border-radius: 10px;
+}
+
+.ls-btn{
+    background-color: #407fb2;
+    color: #fff;
+    width: 65px;
+    height: 35px;
+    font-size: 13px;
+    text-align: center;
+    line-height: 10px;
+    margin-left: 10px;
+}
+
+.ls-btn:hover{
+    background-color: #3ea6b5;
+}

@@ -21,7 +21,8 @@
 	"content_scripts":[
 		{
 			"matches":["<all_urls>"],
-			"js": ["jquery-3.3.1.min.js", "content.js"],
+			"js": ["scripts/jquery-3.3.1.min.js", "scripts/content.js", "scripts/jquery-ui.js"],
+			"css": ["style/bootstrap.css", "style/widget.css"],
 			"run_at":"document_idle",
 			"all_frames":false
 		}
@@ -37,8 +38,7 @@
 			"38":"res/icon38.png",
 			"48":"res/icon48.png",
 			"128":"res/icon128.png"
-		},
-		"default_popup":"popup.html"
+		}
 	},
 
 	"icons":{
@@ -49,6 +49,8 @@
 	},
 
 	"web_accessible_resources":[
-		"res/*.png"
+		"res/*.png",
+		"style/widget.css",
+		"style/bootstrap.css"
 	]
 }
