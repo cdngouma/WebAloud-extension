@@ -4,7 +4,6 @@ WebAloud is a browser extension allowing users to read aloud selected text on a 
 
 Features includes:
 * Auto detection of the language used in the text.
-* Choice of voice and language to use.
-* Choice of pace: native (regular) or learner (slower).
-* Supports multiple languages (depending on browser).
-* Supports keybord shortcut (Ctrl + Shift) to stop speaking
+* Option to select a voice and language to be used.
+* Option to select an appropriate pace.
+* Multiple languages supported(depending on browser).
