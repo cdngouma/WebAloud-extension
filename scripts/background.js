@@ -1,10 +1,30 @@
 var browser = browser || chrome;
-var has_contextMenu = true;
 
-var settings = {
-	autoLang:true,
-	pace:true
-}
+// activate widget
+browser.browserAction.onClicked.addListener(function(tab){
+	if(tab){
+		browser.tabs.executeScript(tab.id, {file:'scripts/content.js'}, function(results){
+			if(browser.runtime.lastError || !results || !results.length){
+				return;
+			}
+			
+			if(results[0] === true){
+				browser.tabs.sendMessage(tab.id, {from:'wba-background', query:'show-widget'});
+			}
+			
+			else{
+				browser.tabs.insertCSS(tab.id, {file:'widget.css'});
+			}
+		});
+	}
+});
+
+chrome.contextMenus.create({
+	id:'wba_read_select',
+	title:'Read aloud selected text',
+	type:'normal',
+	contexts:['selection']
+});
 
 browser.contextMenus.onClicked.addListener(function(info, tabs){
 	if(tabs){
@@ -15,41 +35,3 @@ browser.contextMenus.onClicked.addListener(function(info, tabs){
 		});
 	}
 });
-
-function createContextMenu(){
-	browser.contextMenus.create({
-		id:'wld_read_select',
-		title:'Read aloud selected text',
-		type:'normal',
-		contexts:['selection']
-	});
-	has_contextMenu = true;
-}
-
-// turn on widget
-browser.browserAction.onClicked.addListener(function(tab){
-	alert("clicked");
-	if(tab){
-		browser.tabs.sendMessage(tab.id, {query:'activate-widget'}, function(response){
-			if(response.err){
-				alert("Speech Synthesis is missing");
-			}
-		});
-	}
-});
-
-function getSettings(){
-	return settings;
-}
-
-function updateAutoLang(b){
-	this.settings.autoLang = b;
-}
-
-function togglePace(){
-	this.settings.pace = !this.settings.pace;
-}
-
-function onError(error){
-	console.error(`Error: ${error}`);
-}

@@ -1,273 +1,354 @@
-console.log("content.js loaded");
+// Wrapping in a function to not leak/modify variables if the script
+// was already inserted before.
+(function () {
+	// check if content script was already executed
+	if (window.hasRun === true)
+		return true;		// will be automatically passed back to excecuteScript in background
+	window.hasRun = true;
 
-var widgetHTML = "<!-- logo --> <div class=\"_spacing\" > <a href=\"https://github.com/cdngouma/WebAloud-extension\" class=\"_wba-logo\" target=\"blank\"></a> </div> <!-- select lang --> <div class=\"_divider\"></div> <div> <button title=\"Select language\" id=\"min-voiceSelect\" type=\"button\" class=\"_spacing wba-btn\" style=\"font-weight: bold;\"></button> </div> <div class=\"_divider\"></div> <!-- controls --> <div id=\"controls_div\"> <div class=\"_spacing\"> <button id=\"wba_play\" type=\"button\" class=\"_CtrlBtn wba-btn\"><i class=\"fa fa-play\"></i></button> </div> <div class=\"_spacing\"> <button id=\"wba_pause\" type=\"button\" class=\"_CtrlBtn wba-btn\"><i class=\"fa fa-pause\"></i></button> </div> <div class=\"_spacing\"> <button id=\"wba_stop\" type=\"button\" class=\"_CtrlBtn wba-btn\"><i class=\"fa fa-stop\"></i></button> </div> </div> <div class=\"_divider\"></div> <!-- close button --> <div class=\"_spacing\"> <button title=\"Close\" id=\"wba-close\" type=\"button\" class=\"wba-btn\" style=\"background-color: #f7f7f7;\"><i class=\"fa fa-times\"></i></button> </div> </div>";
-var settingPopupHTML = "<a class=\"_wba-logo\" target=\"blank\" style=\"float: right;\"></a> <h6>Setup voice</h6> <div clas=\"form-inline\" style=\"margin-top: 10px;\"> <label class=\"custom-control custom-checkbox\"> <input id=\"wba-autodetect\" type=\"checkbox\" class=\"custom-control-input\"> <span class=\"custom-control-description\">auto-detect</span> <span class=\"custom-control-indicator\"></span> </label> <label class=\"custom-control custom-checkbox\"> <input id=\"wba-learnerpace\" type=\"checkbox\" class=\"custom-control-input\"> <span class=\"custom-control-description\">Learner rate (slower)</span> <span class=\"custom-control-indicator\"></span> </label> </div> <div class=\"form-inline\"> <select id=\"voiceSelect\" disabled='false' class=\"form-control\" style=\"width: 200px; height: 35px; font-size: 13px;\"></select> <button id=\"save-lang\" class=\"btn ls-btn\" type=\"button\">Save</button> </div> <a href=\"https://github.com/cdngouma/WebAloud-extension/issues\" target=\"blank\" class=\"fa fa-github\"><span>Help and Feedback</span></a>";
+	// main code
 
-// main content script
-var browser = browser || chrome;
-var synth =  window.speechSynthesis;
-var synthPopulated = false;
-var state = false;
+	console.log('content.js');
 
-var autoLang = true;
-var learnerPace = false;
-var voices = [];
-var currentVoice;
-var currentPace = 1;	// default pace (native). 0.40 for learner
+	var isPDF = false;
+	var state = true;
+	var synth = window.speechSynthesis;
+	var autoLang = true;
+	var paragraphsReading = false;		// read paragraphs and headers
+	var voices = [];
+	var currentVoice;
+	var currentRate = 1;
 
-// var testText = "Helloooooo world!";
+	var _queue = [];		// queue for text portions to be read
+	// HTML code to be injected
+	var logoHTML = "<a href=\"https://github.com/cdngouma/WebAloud-extension\" class=\"wba-logo\" target=\"blank\"></a>";
+	var controlsHTML = "<div id=\"wba-controls\" class=\"form-inline\"> <!-- controls --> <div title=\"Previous\" id=\"wba-prev\" class=\"_spacing wba-btn\"><svg class=\"wba-ic wba-ic-prev\"></svg></div> <div title=\"Play\" id=\"wba-play\" class=\"_spacing wba-btn\"><svg class=\"wba-ic wba-ic-play\"></svg></div> <div title=\"Pause\" id=\"wba-pause\" class=\"_spacing wba-btn\" style=\"display: none;\"><svg class=\"wba-ic wba-ic-pause\"></svg></div> <div title=\"Stop\" id=\"wba-stop\" class=\"_spacing wba-btn\"><svg class=\"wba-ic wba-ic-stop\"></svg></div> <div title=\"Next\" id=\"wba-next\" class=\"_spacing wba-btn\"><svg class=\"wba-ic wba-ic-next\"></svg></div> <div title=\"Settings\" id=\"wba-settings-btn\" class=\"_spacing\"></div> <div title=\"Close\" id=\"wba-close\"><svg class=\"wba-ic wba-ic-close\"></svg></div> </div>";
+	var settingsHTML = "<div id=\"wba-settings\" class=\"form-inline\" style=\"display: none;\"> <p class=\"_spacing\">Speed</p> <div class=\"wba-range-control _spacing\"> <input id=\"wba-inputRange\" type=\"range\" min=\"0.25\" max=\"1.5\" step=\".25\" value=\"1\" data-thumbwidth=\"12\"> <output id=\"wba-rangeval\">1x</output> </div> <p class=\"_spacing\">Voice</p> <select id=\"wba-voicelist\" class=\"wba-select _spacing\" onmousedown=\"if(this.options.length>8){this.size=8;}\" onchange='this.size=0;' onblur=\"this.size=0;\"></select> <label class=\"wba-container _spacing\"> Enable language auto detection <input id=\"wba-autodetect\" type=\"checkbox\"> <span class=\"wba-checkmark\"></span> </label> <label class=\"wba-container _spacing\"> Enable section reading <input id=\"wba-paragReading\" type=\"checkbox\"> <span class=\"wba-checkmark\"></span> </label> </div>";
 
-browser.runtime.onMessage.addListener(function(request, sender, sendResponse){
+	var browser = browser || chrome;
 
-	if(request.query === 'read-selected'){
-		if(!readSelectedText())
-			sendResponse({err:true});
+	activateWidget();
+
+	/** BROWSER MESSAGES **/
+
+	browser.runtime.onMessage.addListener(function(message){
+		if(message.from === 'wba-background'){
+			if(message.query === 'show-widget'){
+				showWidget();
+			}
+		}
+	});
+
+	/** FUNCTIONS **/
+
+	function showWidget(){
+		if (document.getElementById('wba-widget') !== null) {
+			$('body').addClass('wba-lower');
+			$('#wba-widget').show('slide');
+			return;
+		}
 	}
-	else if(request.query === 'activate-widget'){
-		console.log("call made");
-		if(!activateWidget())
-			sendResponse({err:true});
+
+	function activateWidget() {
+		console.log('activating widget');
+
+		var div = document.createElement('div');
+		$(div).html(logoHTML + controlsHTML + settingsHTML);
+		div.id = 'wba-widget';
+
+		document.documentElement.appendChild(div);
+		$('body').addClass('wba-lower');
+
+		$('.wba-logo').css('background-image', 'url(' + browser.extension.getURL('res/icon48.png') + ')');
+		$('.wba-ic-play').css('background', 'url(' + browser.extension.getURL('res/ic_play.svg') + ')');
+		$('.wba-ic-pause').css('background', 'url(' + browser.extension.getURL('res/ic_pause.svg') + ')');
+		$('.wba-ic-stop').css('background', 'url(' + browser.extension.getURL('res/ic_stop.svg') + ')');
+		$('.wba-ic-next').css('background', 'url(' + browser.extension.getURL('res/ic_next.svg') + ')');
+		$('.wba-ic-prev').css('background', 'url(' + browser.extension.getURL('res/ic_back.svg') + ')');
+		$('.wba-ic-close').css('background', 'url(' + browser.extension.getURL('res/ic_times-black.svg') + ')');
+
+		$('#wba-paragReading').prop('checked', paragraphsReading);
+		$('#wba-autodetect').prop('checked', autoLang);
+		$('#wba-voicelist').prop('disabled', autoLang);
+
+		console.log(window.speechSynthesis.onvoiceschanged);
+		console.log(window.speechSynthesis.onvoiceschanged === undefined);
+
+		if (synth.onvoiceschanged !== undefined) {
+			synth.onvoiceschanged = populateVoiceList;
+			checkPageUrl();
+		}
 	}
-});
 
-function firstToUpperCase(str){
-	return str.charAt(0).toUpperCase() + str.slice(1);
-}
+	// check if page is pdf
+	function checkPageUrl() {
+		var pageUrl = window.location.href;
+		var prev = $('.wba-ic-prev').parent();
+		var next = $('.wba-ic-next').parent();
 
-function readSelectedText(){
-	let texts = getText();
-	console.log(texts);
+		if (!pageUrl.match(RegExp(".pdf"))) {
+			isPDF = false;
+			prev.addClass('wba-disabled');
+			next.addClass('wba-disabled');
+		} else {
+			isPDF = true;
+			prev.removeClass('wba-disabled');
+			next.removeClass('wba-disabled');
+			console.log($('embed'));
+			var embed = document.getElementById('plugin');
+			var con = embed.contentDocument;
+			console.log(embed);
+			console.log(con);
+		}
+	}
 
-	if(!window.speechSynthesis)
-		return; // false;
+	// add voices
+	function firstToUpperCase(str) {
+		return str.charAt(0).toUpperCase() + str.slice(1);
+	}
 
-	if(autoLang){
-		browser.i18n.detectLanguage(text[0], function(langInfo){
-			for(a of langInfo.languages){
-				if(a.percentage == 100){
-					lang = a.language;
+	function populateVoiceList() {
+		if (typeof speechSynthesis === 'undefined')
+			return;
+
+		console.log("populating list...");
+
+		var newVoices = synth.getVoices();
+
+		if (newVoices.length === voices.length)
+			return;
+
+		voices = newVoices;
+
+		for (i = 0; i < voices.length; i++) {
+			var option = document.createElement('option');
+			// extract only language from name then set first char to uppercase.
+			// Google french --> French
+			let name = (voices[i].name).split(RegExp("Google"));
+			let lang = "";
+
+			if (name.length > 1)
+				lang = firstToUpperCase(name[1].trim());
+			else
+				lang = firstToUpperCase(name[0].trim());
+
+			option.textContent = lang;
+
+			if (voices[i].default) {
+				option.textContent += ' -- Default';
+			}
+
+			document.getElementById("wba-voicelist").appendChild(option);
+		}
+
+		// set default voice
+		currentVoice = voices[0];
+		$('#wba-settings-btn').html(firstToUpperCase((currentVoice.lang).split("-")[0]));
+
+		synthPopulated = true;
+
+		console.log("done...\n" + voices.length + " voices found");
+	}
+
+	/** TODO: implement butter algotithm for more smoothness between each chunk of text **/
+	/**		  split text at nearest punctuation **/
+	// chunk text in parts of max length 
+	function getTextParts(str) {
+		//  var str = window.getSelection().toString();
+		const MAX = 200; // max number of characters read (except for default);
+		var limit = currentVoice.default ? 2456 : MAX; // 2456 estimated limit for default voice
+
+		if (str < limit) return [str];
+
+		var texts = [];
+
+		var beg = 0; // starting index
+		for (let pos = limit - 1; pos < str.length; pos++) {
+			for (let i = pos; i > beg; i--) {
+				if (str.charAt(i) === ' ') {
+					let s = str.slice(beg, pos);
+					texts.push(s);
+					str = str.slice(pos, str.length);
+					beg = 0;
+					pos = limit - 1;
 					break;
 				}
+				pos--;
+				i--;
 			}
-
-			let voice = matchVoice(lang);
-			if(voice)
-				play(matchVoice(lang), texts);
-			else
-				alert("Sorry! This language is not supported");
-		});
-	}
-	else{
-		play(currentVoice, texts);
-	}
-
-	return; // true;
-}
-
-function getText(){
-	var str = window.getSelection().toString();
-//	console.log("length:"+str.length);
-	const MAX = 193;		// max number of characters read (except for default);
-	var limit = currentVoice.default ? 2456 : MAX;		// 2456 estimated limit for default voice
-
-	if(str < limit) return [str];
-
-	var arr = [];
-
-	var beg = 0;		// starting index
-	for(let pos = limit-1; pos < str.length; pos++){
-		for(let i=pos; i > beg; i--){
-			if(str.charAt(i) === ' '){
-				let s = str.slice(beg, pos);
-				arr.push(s);
-				str = str.slice(pos, str.length);
-				beg = 0;
-				pos = limit-1;
-				break;
-			}
-			pos--;
-			i--; 
 		}
+
+		if (str.length > 0)
+			texts.push(str);
+
+		return texts;
 	}
 
-	if(str.length > 0)
-		arr.push(str);
+	/** TODO: Fix bug: when pause button is clicked, the reading starts from the beginning **/
+	function play(voice, texts) {
+		voice = currentVoice;
+		// array of text for testing purpose
+		texts = ["part one", "next part", "third part", "near end", "close", "end"];
 
-	return arr;
-}
+		if (texts === undefined)
+			return;
 
-function matchVoice(lang){
-	for(v of voices){
-		if(v.lang.includes(lang)){
-			return v;
+		if (synth.paused) {
+			synth.resume();
+			return;
 		}
-	}
-	return undefined; //returns default
-}
 
-function play(voice, text){
-	if(synth.speaking) synth.cancel();
+		if (synth.speaking)
+			synth.cancel();
 
-	console.log(voice);
-	// TODO: make switching between utterances smoother
-	// Currently makes unexpected pauses
-	for(x of text){
-		var utterance = new SpeechSynthesisUtterance(x);
+		$('#wba-pause').show();
+		$('#wba-play').hide();
+
+		_queue = texts;
+
+		console.log("speaking: " + _queue[0]);
+		var utterance = new SpeechSynthesisUtterance(_queue[0]);
 		utterance.voice = voice;
 		utterance.lang = voice.lang;
-		utterance.rate = currentPace;
+		utterance.rate = currentRate;
+
 		synth.speak(utterance);
+		_queue.shift();
+
+		utterance.onend = function (event) {
+
+			if (_queue.length > 0) {
+				utterance.text = _queue[0];
+				console.log('speaking: ' + utterance.text);
+				synth.speak(utterance);
+				_queue.shift();
+			} else {
+				$('#wba-pause').hide();
+				$('#wba-play').show();
+			}
+		}
+
+		utterance.onpause = function (event) {
+			$('#wba-pause').hide();
+			$('#wba-play').show();
+		}
+
+		utterance.onerror = function (event) {
+			console.log(event);
+		}
+
 	}
 
-	console.log("finished playing");
-}
+	function pause() {
+		synth.pause();
+	}
 
-// Js for main widget
+	function stop() {
+		$('#wba-play').show();
+		$('#wba-pause').hide();
+		console.log('stopped');
+		synth.cancel();
+		_queue = [];
+	}
 
-function enableEventListeners(){
-	$('#min-voiceSelect').click(selectVoice);
+	/** PDF MANIPULATION **/
+	function nextPage() {
 
-	$('#wba_play').click(function(){
+	}
 
+	function previousPage() {
+
+	}
+
+
+	/** HANDLE EVENTS **/
+
+	// hide settings box when swicthing tab
+	$(window).blur(function () {
+		$('#wba-settings').hide('fade');
 	});
 
-	$('#wba_pause').click(function(){
-
-	});
-
-	$('#wba_stop').click(function(){
-		if(synth.speaking) synth.cancel();
-	});
-
-	$('#wba_widget').click(function(){
-		$('#wba_widget').hide('slide', {direction: 'right'}, 250);
-	});
-
-	//popup
-
-	$('#save-lang').click(function (event){
-		if($('#lang-selector').prop('display') !== 'none'){
-			$('#wba_widget').show('slide', {direction:'right'}, 500);
-			$('#lang-selector').hide();
-
-			let i = $('#voiceSelect').prop('selectedIndex');
-			currentVoice = voices[i];
-		
-			$('#min-voiceSelect').html(firstToUpperCase((currentVoice.lang).split("-")[0]));
+	$(document).mouseup(function (e) {
+		// close settings window when focus out
+		var container = $('#wba-settings');
+		if (!container.is(e.target) && container.has(e.target).length === 0) {
+			container.hide('fade');
 		}
+	});
+
+	var prevBorder = "";
+	var prevTarget;
+	$(document).mouseover(function(e){
+		// highlight sections
+		var target = $(e.target);
+
+		if(paragraphsReading){
+			if(prevTarget) prevTarget.css('border', prevBorder);
+
+			prevBorder = target.css('border');
+
+			if($('#wba-widget').has(target).length === 0)
+				target.css('border', '1px solid red');
+
+			prevTarget = target;
+		}
+	});
+
+	$('#wba-settings-btn').on('click', function () {
+		console.log('wba-settings-btn clicked');
+		if ($('#wba-settings').is(':visible')) {
+			$('#wba-settings').hide('fade');
+		} else {
+			$('#wba-settings').show('fade');
+		}
+	});
+
+	// update range output
+	$('#wba-inputRange').on('input', function () {
+
+		var control = $(this),
+			controlMin = control.attr('min'),
+			controlMax = control.attr('max'),
+			controlVal = control.val(),
+			controlThumbWidth = control.data('thumbwidth');
+
+		var range = controlMax - controlMin;
+
+		var position = ((controlVal - controlMin) / range) * 100;
+		var positionOffset = Math.round(controlThumbWidth * position / 100) - (controlThumbWidth / 2);
+		var output = control.next('output');
+
+		output.css('left', 'calc(' + position + '% - ' + positionOffset + 'px)').text(controlVal + 'x');
+		// update current rate
+		currentRate = controlVal;
+
+	});
+
+	$('#wba-voicelist').change(function () {
+		let i = $(this).prop('selectedIndex');
+		// update current voice
+		currentVoice = voices[i];
+		$('#wba-settings-btn').html(firstToUpperCase((currentVoice.lang).split("-")[0]));
+	});
+
+	$('#wba-paragReading').change(function(event){
+		paragraphsReading = $(this).is(':checked');
 	});
 
 	$('#wba-autodetect').change(function(event){
-		autoLang = !autoLang;
-		$('#voiceSelect').prop('disabled', autoLang);
+		$('#wba-voicelist').prop('disabled', $(this).is(':checked'));
+		autoLang = $(this).is(':checked');
 	});
 
-	$('#wba-learnerpace').change(function(event){
-		learnerPace = !learnerPace;
+	$('#wba-play').on('click', play);
+	$('#wba-pause').on('click', pause);
+	$('#wba-stop').on('click', stop);
+	$('#wba-next').on('click', nextPage);
+	$('#wba-prev').on('click', previousPage);
+
+	$('#wba-close').on('click', function (event) {
+		$('#wba-widget').hide('slide');
+		$('body').removeClass('wba-lower');
 	});
-}
 
-function selectVoice(event) {
-	console.log($('#wba_widget'));
-
-	if($('#wba_widget').prop('display') !== 'none'){
-		$('#wba_widget').hide('slide', {direction: 'right'}, 500);
-		$('#lang-selector').show();
-	}
-}
-
-// Js for select lang window
-
-
-
-// populate voices
-
-function activateWidget(){
-	if(typeof speechSynthesis === 'undefined')
-		return;
-
-	console.log("activating widget");
-
-/*	var style = document.createElement('link');
-	style.rel = 'stylesheet';
-	style.type = 'text/css';
-	style.href = chrome.extension.getURL('widget.css');
-	(document.head||document.documentElement).appendChild(style);*/
-
-//	(document.head).append('<link rel="stylesheet" href="style/widget.css">');
-//	(document.body).append('<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.12.0/jquery-ui.min.js"></script>');
-
-	var body = document.body;
-	var elem = document.createElement('div');
-	elem.innerHTML = widgetHTML;
-	elem.id = "wba_widget";
-	body.insertBefore(elem, body.firstChild);
-
-	console.log(elem);
-
-	elem = document.createElement('div');
-	elem.innerHTML = settingPopupHTML;
-	elem.id = "lang-selector";
-	body.appendChild(elem);
-
-	$('._wba-logo').prop('background-image', "url("+chrome.extension.getURL('res/icon38.png')+")");
-
-	console.log($('._wba-logo').prop('background-image'));
-
-	$('#wba_widget').show('slide', {direction:'right'}, 500);	
-	$('#wba-learnerpace').prop('checked', learnerPace);
-	$('#wba-autodetect').prop('checked', autoLang);
-
-	console.log($('#wba_widget'));
-
-	console.log($('#wba-close'));
-
-	if (speechSynthesis.onvoiceschanged !== undefined) {
-		console.log("populate?");
-  		speechSynthesis.onvoiceschanged = populateVoiceList();
-  	}
-
-  	enableEventListeners();
-}
-
-function populateVoiceList() {
-  	if(typeof speechSynthesis === 'undefined') {
-  		console.log("no SS");
-  		console.log(typeof speechSynthesis);
-    	return;
-  	}
-
-  	console.log("populating list");
-
-	voices = synth.getVoices();
-
-	if(synthPopulated)
-		return;
-
-	for(i=0; i < voices.length ; i++) {
-	  	var option = document.createElement('option');
-	  	// extract only language from name then set first char to uppercase.
-	  	// Google french --> French
-	  	let name = (voices[i].name).split(RegExp("Google"));
-	  	let lang = "";
-	  	if(name.length > 1)
-	  		lang = firstToUpperCase(name[1].trim());
-	  	else
-	  		lang = firstToUpperCase(name[0].trim());
-	  	option.textContent = lang;
-    	
-    	if(voices[i].default) {
-    		option.textContent += ' -- Default';
-    	}
-
-    	document.getElementById("voiceSelect").appendChild(option);
-  	}
-
-  	// set default voice
-  	currentVoice = voices[0];
-  	$('#min-voiceSelect').html(firstToUpperCase((currentVoice.lang).split("-")[0]));
-
-  	synthPopulated = true;
-
-  	console.log("done...[" + voices.length + "] voices");
-}
+})();
